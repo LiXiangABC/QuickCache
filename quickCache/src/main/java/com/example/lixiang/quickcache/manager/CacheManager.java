@@ -57,8 +57,8 @@ public class CacheManager {
 
 
 
-//    private int cacheMapLength = 1000;
-    private int cacheMapLength = 10;
+    private int cacheMapLength = 1000;
+//    private int cacheMapLength = 10;
 
     private long cacheMapSize = Runtime.getRuntime().maxMemory()/16;
 //    private long cacheMapSize = 3000;
