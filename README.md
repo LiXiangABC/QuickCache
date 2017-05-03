@@ -21,7 +21,7 @@ allprojects {
 ```
 ```java  
 <!--项目的gradle下添加-->
-compile 'com.github.LiXiangABC:QuickCache:v2.0.0'
+compile 'com.github.LiXiangABC:QuickCache:v2.0.1'
   
 ```
 
