@@ -55,15 +55,6 @@ public final class SimpleCookieJar implements CookieJar {
 
     @Override
     public synchronized List<Cookie> loadForRequest(HttpUrl url) {
-//        List<Cookie> result = new ArrayList<Cookie>();
-//        for (Cookie cookie : allCookies) {
-//            System.out.println("++++++++++++++++++" + cookie.toString());
-//            if (cookie.matches(url)) {
-//                result.add(cookie);
-//            }
-//        }
-    	
-    	
     	 List<Cookie> allCookies = new ArrayList<>();
          String s = PreferenceHelper.readString(context, "isLogin", "isLogin");
          if (s != null) {
@@ -71,8 +62,8 @@ public final class SimpleCookieJar implements CookieJar {
              for (String x : s.split("\n")) {
                  String[] cookiex = x.split("`");
 
-                 for (int i = 0; i < cookiex.length; i++) {
-                     if (i != 3) {
+//                 for (int i = 0; i < cookiex.length; i++) {
+//                     if (i != 3) {
                          Cookie.Builder builder = new Cookie.Builder();
                          builder.name(cookiex[0].trim());
                          builder.value(cookiex[1]);
@@ -82,8 +73,8 @@ public final class SimpleCookieJar implements CookieJar {
                          Cookie build = builder.build();
                          allCookies.clear();
                          allCookies.add(build);
-                     }
-                 }
+//                     }
+//                 }
 
              }
 

@@ -1,12 +1,12 @@
 package com.example.lixiang.quickcache.taskscheduler;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
+import com.example.lixiang.quickcache.bean.TaskCaheBean;
+
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -128,15 +128,14 @@ import java.util.concurrent.Semaphore;
      * 每一次加载都会开启一个；然后存储在list集合中
      * @return
      */
-    public Runnable buildTask(Context context,String fileName,Map<String, String> params,int validTime,
-                              boolean openNetWork,String requestType,Object tag,Handler mUIHandler)
+    public Runnable buildTask(TaskCaheBean taskCaheBean)
     {
         return new Runnable()
         {
             @Override
             public void run()
             {
-                runThreadPoolChildThread(context,fileName,params,validTime,openNetWork,requestType,tag,mUIHandler);
+                runThreadPoolChildThread(taskCaheBean);
             }
         };
     }
@@ -154,8 +153,7 @@ import java.util.concurrent.Semaphore;
     /**
      * @author lixiang 队列线程池中需要执行的方法
      **/
-    public abstract void runThreadPoolChildThread(Context context,String fileName,Map<String, String> params,int validTime,
-                                                  boolean openNetWork,String requestType,Object tag,Handler mUIHandler);
+    public abstract void runThreadPoolChildThread(TaskCaheBean taskCaheBean);
 
     /**
      * @author lixiang 初始化缓存容器

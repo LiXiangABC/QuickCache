@@ -5,7 +5,8 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.NonNull;
 
-import com.example.lixiang.quickcache.bean.LoadCacheStringBean;
+import com.example.lixiang.quickcache.bean.LoadingCacheStringBean;
+import com.example.lixiang.quickcache.bean.TaskCaheBean;
 import com.example.lixiang.quickcache.exception.DataSpecificationException;
 import com.example.lixiang.quickcache.manager.CacheManager;
 import com.example.lixiang.quickcache.manager.RequestCacheManager;
@@ -15,10 +16,11 @@ import com.example.lixiang.quickcache.utils.FileUtil;
 import com.example.lixiang.quickcache.utils.md5Util;
 
 import java.io.File;
-import java.lang.ref.WeakReference;
+import java.lang.ref.SoftReference;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by lixiang on 2017/3/27.
@@ -28,7 +30,7 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
 
     private static QuickCacheUtil quickCacheUtil = new QuickCacheUtil();
     private Context context;
-    public static String UserName = "";
+    public static String UserName = "tempFile";
 
     public static String getCacheDirUserName() {
         return UserName;
@@ -38,10 +40,7 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
         UserName = userName;
     }
 
-    private QuickCacheUtil() {
-//        在创建的时候初始化保证集合的线程安全
-//        Collections.synchronizedMap(new ArrayMap<String, SoftReference<String>>());
-    }
+    private QuickCacheUtil() {}
 
     public static QuickCacheUtil getInstance() {
 
@@ -51,7 +50,6 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
 
 
     public enum RequestType{
-
         post,
         put,
         delete,
@@ -61,6 +59,9 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
     //从APPlication里面获取context
     public  void setContext(Context contexts) {
         context = contexts;
+        OkHttpUtils.setContext(contexts);
+        OkHttpUtils client = OkHttpUtils.getInstance();
+        client.setConnectTimeout(30000, TimeUnit.MILLISECONDS);
     }
 
 
@@ -79,14 +80,6 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
         return chacheManager;
     }
 
-    private  boolean openNetWork = false;
-
-    public void openNetWork(boolean isOpen){
-        openNetWork = isOpen;
-    }
-
-
-
     HashSet<Object> tagHashSet= new HashSet<Object>();
 
     public void cancelTag(Object tag){
@@ -101,15 +94,17 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
 
     public static class UIHandler<T extends UIHandler.BaseHandlerCallBack> extends Handler {
 
-        WeakReference<T> wr;
+        SoftReference<T> wr;
 
         public UIHandler(T t) {
-            wr = new WeakReference<T>(t);
+            wr = new SoftReference<T>(t);
         }
 
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
+//            System.out.println(" Message："+msg);
+
             T t = wr.get();
             if (t != null) {
                 t.callBack(msg);
@@ -117,20 +112,30 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
         }
 
         public interface BaseHandlerCallBack {
-            public void callBack(Message msg);
+             void callBack(Message msg);
         }
     }
 
-    public LoadCacheStringBean LoadCacheString(){
 
-        return new LoadCacheStringBean();
+
+    /**
+    * @apiNote 用于加载缓存数据
+     * @return LoadingCacheStringBean: 需要填充的数据对象
+    *@author LiXaing
+    *create at 2017/5/2 15:16
+    */
+    public LoadingCacheStringBean LoadingCacheString(){
+
+        return new LoadingCacheStringBean() {
+            @Override
+            public void commitListener() {
+//                cacheCommit(this);
+        LoadingCacheString(this);
+            }
+        };
     }
 
-    public void commit(LoadCacheStringBean loadCacheStringBean){
-        LoadCacheString(loadCacheStringBean);
-    }
-
-    private    void LoadCacheString(LoadCacheStringBean loadCacheStringBean){
+    private    void LoadingCacheString(LoadingCacheStringBean loadCacheStringBean){
 
         synchronized (this){
         tagHashSet.add(loadCacheStringBean.getTag());
@@ -155,32 +160,30 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
                     }
                 }
             });
-//            {
-//                public void handleMessage(Message msg)
-//                {
 
+        /** 判断当前是否需要刷新缓存数据,当需要刷新缓存数据就不从内存中读取
+        * @author LiXaing create at 2017/5/2 22:42 */
+        if (!loadCacheStringBean.isRefreshCache()) {
 
-        String type = getRequestTypr(loadCacheStringBean.getRequestType());
-//        md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()
-        String memoryCache = getCacheManager().get(md5Util.md5(loadCacheStringBean.getUrl()) + File.separator + md5Util.md5(type + loadCacheStringBean.getUrl() + loadCacheStringBean.getParams().hashCode()));
-
-
+            String type = getRequestTypr(loadCacheStringBean.getRequestType());
+            String memoryCache = getCacheManager().get(md5Util.md5(loadCacheStringBean.getUrl()) + File.separator + md5Util.md5(type + loadCacheStringBean.getUrl() + loadCacheStringBean.getParams().hashCode()));
 //        防止当展示页面被回收，依旧进行数据返回则会发生内存泄漏
-        if (memoryCache != null) {
-            if (tagHashSet.contains(loadCacheStringBean.getTag())) {
-                loadCacheStringBean.getOrc().onResponseCache(memoryCache);
+            if (memoryCache != null) {
+                if (tagHashSet.contains(loadCacheStringBean.getTag())) {
+                    loadCacheStringBean.getOrc().onResponseCache(memoryCache);
+                }
+                return ;
             }
-//            else {
-//                loadCacheStringBean.getOrc().onRequestNetWork();
-//            }
-        return ;
         }
 
-        addTask(buildTask(context, loadCacheStringBean.getUrl(), loadCacheStringBean.getParams(), loadCacheStringBean.getValidTime(), loadCacheStringBean.isRefreshCache(), type, loadCacheStringBean.getTag(),mUIHandler));
+        addTask(buildTask(new TaskCaheBean()
+                .setContext(context)
+                .setUIHandler(mUIHandler)
+                .setLoadingCacheStringBean(loadCacheStringBean)));
     }
 
     @NonNull
-    private String getRequestTypr(RequestType requestType) {
+    public static String getRequestTypr(RequestType requestType) {
         String type = null;
         switch (requestType) {
             case post:
@@ -199,6 +202,18 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
         return type;
     }
 
+
+
+    /**
+    * @apiNote 向本地写入Cache
+     * @param requestType ：请求类型
+     * @param fileName ：url
+     * @param m_params ：请求参数
+     * @param cache ：缓存数据
+     * @param validTime ：有效期时间
+     *@author LiXaing
+    *create at 2017/5/2 15:20
+    */
     public void putCacheString(RequestType requestType, String fileName, Map<String, String> m_params, String cache, int validTime){
         HashMap params ;
         if (m_params != null) {
@@ -221,7 +236,7 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
         }
 
         File file = FileUtil.getDiskCacheDir(context,
-                "QuickCacheFile" + File.separator +md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()));
+                 md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()));
         getCacheManager()
                 .writeLoaclCache(file,
                         cache,
@@ -252,9 +267,8 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
 
 
     @Override
-    public void runThreadPoolChildThread(Context context,String fileName,Map<String, String> params,int validTime,
-                                         boolean openNetWork,String requestType,Object tag,Handler mUIHandler) {
-        RequestCacheManager.RequestCache(context, fileName, params, validTime, openNetWork, requestType, tag,mUIHandler);
+    public void runThreadPoolChildThread(TaskCaheBean taskCaheBean) {
+        RequestCacheManager.RequestCache(taskCaheBean);
     }
 
     @Override
@@ -262,11 +276,29 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
 
     }
 
+
+    /**
+    * @apiNote ：为一接口设置别名
+     * @param requestType ：请求类型
+     * @param url ：url
+     * @param params ：请求参数
+     * @param alias ：需要设定的别名
+     *@author LiXaing
+    *create at 2017/5/2 15:24
+    */
     public void setAlias(RequestType requestType,String url,Map<String, String> params, String alias) {
         String value = md5Util.md5(url)+File.separator + md5Util.md5(requestType + url + params.hashCode());
         getCacheManager().putAlias(md5Util.md5(alias),value);
     }
 
+
+
+    /**
+    * @apiNote : 通过别名删除内存以及本地中的一条Cache
+     * @param alias ：别名
+     *@author LiXaing
+    *create at 2017/5/2 15:25
+    */
     public void deleteAliasCache(String alias){
         String value = getCacheManager().getAlias(md5Util.md5(alias));
         if (value ==null) {
@@ -279,60 +311,55 @@ public class QuickCacheUtil extends ThreadTheTaskScheduler {
     }
 
 
+    /**
+    * @apiNote ：通过别名删除内存以及本地中的一条Cache
+     * @param requestType ：请求类型
+     * @param fileName : URL
+     * @param params : 请求参数
+    *@author LiXaing
+    *create at 2017/5/2 15:26
+    */
     public  void deleteKeyCache(RequestType requestType,String fileName,Map<String, String> params) {
         getCacheManager().deleteCacheItemAll(md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()));
     }
 
 
 
-    public void deleteAliasPagingCache(String url,String PagingRules,int index){
-
-        String dirPath =  FileUtil.getDiskCacheDirPath(context)+File.separator +"QuickCacheFile" + File.separator + md5Util.md5(url);
-
-
-        File file = new File(dirPath);
-//        File file = FileUtil.getDiskCacheDir(context,
-//                "QuickCacheFile" + File.separator + md5Util.md5(url));
-        long size = FileUtil.getFileList(file);
-
-//        for (long i = 0; i < size; i++) {
-//            File file1 = new File(dirPath+ File.separator +PagingRules+(i+1));
-//            file1.delete();
-//        System.out.println("deleteAliasCache:"+md5Util.md5(url+PagingRules+(i+1))+"     long size :"+size);
-            deleteAliasCache(url + PagingRules+index);
-//        }
-    }
+//    public void deleteAliasPagingCache(String url,String PagingRules,int index){
+//        String dirPath =  FileUtil.getDiskCacheDirPath(context)+File.separator +"QuickCacheFile" + File.separator + md5Util.md5(url);
+//        File file = new File(dirPath);
+//        long size = FileUtil.getFileList(file);
+//            deleteAliasCache(url + PagingRules+index);
+//    }
 
 
+    /**
+     * @apiNote : 删除指定url的所有缓存（包括内存中）
+    * @param
+    *@author LiXaing
+    *create at 2017/5/2 15:36
+    */
     public void deleteCacheDir(String url){
-        String dirPath = FileUtil.getDiskCacheDirPath(context)+ File.separator +"QuickCacheFile" + File.separator + md5Util.md5(url);
+//        String dirPath = FileUtil.getDiskCacheDirPath(context)+ File.separator +"QuickCacheFile" + File.separator + md5Util.md5(url);
+        String dirPath = FileUtil.getDiskCacheDirPath(context)+ File.separator + md5Util.md5(url);
         deleteDirectory(dirPath);
     }
 
     private   void deleteDirectory(String fileName) {
-//        SecurityManager checker = new SecurityManager();
-
         if (!fileName.equals("")) {
-
-//			File path = Environment.getExternalStorageDirectory();
-//			path.toString() +
             File newPath = new File(fileName);
-//            checker.checkDelete(newPath.toString());
             if (newPath.isDirectory()) {
                 String[] listfile = newPath.list();
                 try {
                     for (int i = 0; i < listfile.length; i++) {
                         File deletedFile = new File(newPath.toString() + "/"
                                 + listfile[i].toString());
-//                        deletedFile.delete();
                         String key = newPath.getName() + File.separator + deletedFile.getName();
                         removeAll(key);
                     }
-//					newPath.delete();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
     }
     }
     }

@@ -8,8 +8,7 @@ import java.util.Map;
 /**
  * Created by lixiang on 2017/4/17.
  */
-public class LoadCacheStringBean {
-//    t
+public abstract class LoadingCacheStringBean {
     private QuickCacheUtil.RequestType requestType;
     private String url;
     private Map<String, String> params;
@@ -18,28 +17,43 @@ public class LoadCacheStringBean {
     private onResponseCacheListener orc;
     private String alias;
     private boolean isRefreshCache = false;
+    private boolean isOpenNetWork = false;
+
+    public boolean isOpenNetWork() {
+        return isOpenNetWork;
+    }
+
+    public LoadingCacheStringBean setIsOpenNetWork(boolean isOpenNetWork) {
+        this.isOpenNetWork = isOpenNetWork;
+        return this;
+    }
 
     public boolean isRefreshCache() {
         return isRefreshCache;
     }
 
-    public void setIsRefreshCache(boolean isRefreshCache) {
+    public LoadingCacheStringBean setIsRefreshCache(boolean isRefreshCache) {
         this.isRefreshCache = isRefreshCache;
+        return this;
     }
 
     public String getAlias() {
         return alias;
     }
 
-    public void setAlias(String alias) {
+    public LoadingCacheStringBean setAlias(String alias) {
         this.alias = alias;
+        return this;
     }
 
     public QuickCacheUtil.RequestType getRequestType() {
         return requestType;
     }
 
-    public LoadCacheStringBean setRequestType(QuickCacheUtil.RequestType requestType) {
+    public LoadingCacheStringBean setRequestType(QuickCacheUtil.RequestType requestType) {
+        if (requestType == null) {
+            throw new NullPointerException("requestType = null");
+        }
         this.requestType = requestType;
         return this;
     }
@@ -48,7 +62,10 @@ public class LoadCacheStringBean {
         return url;
     }
 
-    public LoadCacheStringBean setUrl(String url) {
+    public LoadingCacheStringBean setUrl(String url) {
+        if (url == null) {
+            throw new NullPointerException("url = null");
+        }
         this.url = url;
         return this;
     }
@@ -57,7 +74,7 @@ public class LoadCacheStringBean {
         return params;
     }
 
-    public LoadCacheStringBean setParams(Map<String, String> params) {
+    public LoadingCacheStringBean setParams(Map<String, String> params) {
         if (params != null) {
         this.params = params;
         }else {
@@ -70,7 +87,7 @@ public class LoadCacheStringBean {
         return validTime;
     }
 
-    public LoadCacheStringBean setValidTime(int validTime) {
+    public LoadingCacheStringBean setValidTime(int validTime) {
         this.validTime = validTime;
         return this;
     }
@@ -79,7 +96,7 @@ public class LoadCacheStringBean {
         return tag;
     }
 
-    public LoadCacheStringBean setTag(Object tag) {
+    public LoadingCacheStringBean setTag(Object tag) {
         this.tag = tag;
         return this;
     }
@@ -88,12 +105,15 @@ public class LoadCacheStringBean {
         return orc;
     }
 
-    public LoadCacheStringBean setOrc(onResponseCacheListener orc) {
+    public LoadingCacheStringBean setOrc(onResponseCacheListener orc) {
         this.orc = orc;
         return this;
     }
 
     public void commit(){
-        QuickCacheUtil.getInstance().commit(this);
+//        QuickCacheUtil.getInstance().commit(this);
+        commitListener();
     }
+
+    public abstract void commitListener();
 }

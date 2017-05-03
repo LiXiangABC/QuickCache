@@ -1,11 +1,11 @@
 package com.example.lixiang.quickcache.manager;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
 import com.example.lixiang.quickcache.QuickCacheUtil;
+import com.example.lixiang.quickcache.bean.TaskCaheBean;
 import com.example.lixiang.quickcache.exception.DataSpecificationException;
 import com.example.lixiang.quickcache.okhttp.OkHttpUtils;
 import com.example.lixiang.quickcache.okhttp.callback.Callback;
@@ -13,7 +13,6 @@ import com.example.lixiang.quickcache.utils.FileUtil;
 import com.example.lixiang.quickcache.utils.md5Util;
 
 import java.io.File;
-import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.Response;
@@ -23,34 +22,45 @@ import okhttp3.Response;
  */
 public class RequestCacheManager {
 
-    public static void RequestCache(Context context,String fileName,Map<String, String> params,int validTime,
-                                      boolean openNetWork,String requestType,Object tag,Handler mUIHandler){
-    File file = FileUtil.getDiskCacheDir(context,
-            md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()));
+    public static void RequestCache(TaskCaheBean taskCaheBean){
+    File file = FileUtil.getDiskCacheDir(taskCaheBean.getContext(),
+            md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl())
+                    +File.separator +
+                    md5Util.md5(QuickCacheUtil.getRequestTypr(taskCaheBean.getLoadingCacheStringBean().getRequestType()) +
+                            taskCaheBean.getLoadingCacheStringBean().getUrl() + taskCaheBean.getLoadingCacheStringBean().getParams().hashCode()));
 //            "QuickCacheFile" + File.separator + fileName);
+
+        /** 判断当前是否需要刷新缓存数据
+         * @author LiXaing create at 2017/5/2 22:42 */
+        if (taskCaheBean.getLoadingCacheStringBean().isRefreshCache()) {
+            getNetWorkCache(taskCaheBean, file);
+            return;
+        }
+
 
         String mCache = null;
         Bundle localCache = null;
         if (file != null) {
-
             localCache = getLocalCache(file);
         }
         if (localCache != null) {
                 mCache =  localCache.getString("cache");
         }
-        if (!openNetWork) {
+
+        if (!taskCaheBean.getLoadingCacheStringBean().isOpenNetWork()) {
             if (localCache == null || mCache == null ) {
-            sendCacheMessage(mUIHandler, null);
+            sendCacheMessage(taskCaheBean.getUIHandler(), null);
                 return;
             }
         }
 
         if (mCache != null) {
-                                sendCacheMessage(mUIHandler, mCache);
+                                sendCacheMessage(taskCaheBean.getUIHandler(), mCache);
             try {
-
                 QuickCacheUtil.getInstance().getCacheManager()
-                        .put(md5Util.md5(fileName)+File.separator + md5Util.md5(requestType + fileName + params.hashCode()),
+                        .put(md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl())+
+                                        File.separator +
+                                        md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl() + taskCaheBean.getLoadingCacheStringBean().getParams().hashCode()),
                                 mCache,
                                 Integer.parseInt(localCache.getString("validTime")),
                                 Long.parseLong(localCache.getString("createTime")),
@@ -61,10 +71,10 @@ public class RequestCacheManager {
 
         }else {
 //            当不为空的时候就进行网络的访问
-            if (openNetWork) {
-                getNetWorkCache(requestType, fileName, file, params, tag, validTime, mUIHandler);
+            if (taskCaheBean.getLoadingCacheStringBean().isOpenNetWork()) {
+                getNetWorkCache(taskCaheBean, file);
             }else {
-            sendCacheMessage(mUIHandler, null);
+            sendCacheMessage(taskCaheBean.getUIHandler(), null);
             }
 
         }
@@ -78,25 +88,25 @@ public class RequestCacheManager {
         mUIHandler.sendMessage(message);
     }
 
-    private static String getNetWorkCache(String requestType, String fileName, File file, Map<String, String> params, Object tag, int validTime, Handler mUIHandler) {
-        switch (requestType) {
+    public static String getNetWorkCache(TaskCaheBean taskCaheBean, File file) {
+        switch (QuickCacheUtil.getRequestTypr(taskCaheBean.getLoadingCacheStringBean().getRequestType())) {
             case "post":
-                 postRequest(fileName,file,params,tag,validTime,mUIHandler);
+                postRequest(taskCaheBean,file);
                 break;
 
         case "get":
-            getRequest(fileName,file,params,tag,validTime,mUIHandler);
+            getRequest(taskCaheBean,file);
                 break;
         }
         return null;
     }
 
 
-    private static void getRequest(String fileName, File file, Map<String, String> params, Object tag, int validTime, Handler mUIHandler) {
+    private static void getRequest(TaskCaheBean taskCaheBean, File file) {
         OkHttpUtils.get()
-                .tag(tag)
-                .params(params)
-                .url(fileName).build().execute(new Callback() {
+                .tag(taskCaheBean.getLoadingCacheStringBean().getTag())
+                .params(taskCaheBean.getLoadingCacheStringBean().getParams())
+                .url(taskCaheBean.getLoadingCacheStringBean().getUrl()).build().execute(new Callback() {
             @Override
             public Object parseNetworkResponse(Response response)
                     throws Exception {
@@ -110,13 +120,16 @@ public class RequestCacheManager {
             @Override
             public void onResponse(Object response) {
                 if (response != null) {
-                    sendCacheMessage(mUIHandler, response.toString());
+                    System.out.println("get ->CacheResponse.toString()" + response.toString());
+                    sendCacheMessage(taskCaheBean.getUIHandler(), response.toString());
 
                     try {
                         QuickCacheUtil.getInstance().getCacheManager()
-                                .put(md5Util.md5(fileName)+File.separator + md5Util.md5("get" + fileName + params.hashCode()),
+                                .put(md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl()) +
+                                                File.separator +
+                                                md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl() + taskCaheBean.getLoadingCacheStringBean().getParams().hashCode()),
                                         response.toString(),
-                                        validTime,
+                                        taskCaheBean.getLoadingCacheStringBean().getValidTime(),
                                         System.currentTimeMillis(),
                                         System.currentTimeMillis());
                     } catch (DataSpecificationException e) {
@@ -126,25 +139,26 @@ public class RequestCacheManager {
                         QuickCacheUtil.getInstance().getCacheManager()
                                 .writeLoaclCache(file,
                                         response.toString(),
-                                        validTime,
+                                        taskCaheBean.getLoadingCacheStringBean().getValidTime(),
                                         System.currentTimeMillis(),
                                         System.currentTimeMillis());
 
                     }).start();
 
                 }else {
-                    sendCacheMessage(mUIHandler, null);
+                    sendCacheMessage(taskCaheBean.getUIHandler(), null);
                 }
             }
 
         });
     }
 
-    private static void postRequest(String fileName, File file, Map<String, String> params, Object tag, int validTime, Handler mUIHandler) {
+    private static void postRequest(TaskCaheBean taskCaheBean, File file) {
+
         OkHttpUtils.post()
-                .tag(tag)
-                .params(params)
-                .url(fileName).build().execute(new Callback() {
+                .tag(taskCaheBean.getLoadingCacheStringBean().getTag())
+                .params(taskCaheBean.getLoadingCacheStringBean().getParams())
+                .url(taskCaheBean.getLoadingCacheStringBean().getUrl()).build().execute(new Callback() {
             @Override
             public Object parseNetworkResponse(Response response)
                     throws Exception {
@@ -167,14 +181,16 @@ public class RequestCacheManager {
             @Override
             public void onResponse(Object response) {
                 if (response != null) {
-                    System.out.println("CacheResponse.toString()" + response.toString());
-                    sendCacheMessage(mUIHandler, response.toString());
+                    System.out.println("post ->CacheResponse.toString()" + response.toString());
+                    sendCacheMessage(taskCaheBean.getUIHandler(), response.toString());
 
                     try {
                         QuickCacheUtil.getInstance().getCacheManager()
-                                .put(md5Util.md5(fileName)+File.separator + md5Util.md5("post" + fileName + params.hashCode()),
+                                .put(md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl())+
+                                                File.separator +
+                                                md5Util.md5(taskCaheBean.getLoadingCacheStringBean().getUrl() + taskCaheBean.getLoadingCacheStringBean().getParams().hashCode()),
                                         response.toString(),
-                                        validTime,
+                                        taskCaheBean.getLoadingCacheStringBean().getValidTime(),
                                         System.currentTimeMillis(),
                                         System.currentTimeMillis());
                     } catch (DataSpecificationException e) {
@@ -186,14 +202,14 @@ public class RequestCacheManager {
                         QuickCacheUtil.getInstance().getCacheManager()
                                 .writeLoaclCache(file,
                                         response.toString(),
-                                        validTime,
+                                        taskCaheBean.getLoadingCacheStringBean().getValidTime(),
                                         System.currentTimeMillis(),
                                         System.currentTimeMillis());
 
                     }).start();
 
                 }else {
-                    sendCacheMessage(mUIHandler, null);
+                    sendCacheMessage(taskCaheBean.getUIHandler(), null);
                 }
             }
 

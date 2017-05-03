@@ -455,7 +455,9 @@ public class CacheManager {
 
         File file = FileUtil.getDiskCacheDir(context,
                  key);
-        file.delete();
+        boolean delete = file.delete();
+        System.out.println("deleteCacheItemLocal ->:"+ file.getAbsolutePath().toString());
+        System.out.println("deleteCacheItemLocal boolean ->:"+ file.getAbsolutePath().toString());
     }
     public  void deleteCacheItemAll(String key) {
         deleteCacheItemLocal(key);
