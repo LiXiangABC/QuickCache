@@ -1,15 +1,13 @@
 apply plugin: 'com.android.library'
-apply plugin: 'me.tatarka.retrolambda'
-
+apply plugin: 'com.github.dcendents.android-maven'
+group = 'com.github.LiXiangABC'
 def javaVersion = JavaVersion.VERSION_1_8
-
-
 android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+    compileSdkVersion 25
+    buildToolsVersion '26.0.2'
     defaultConfig {
-        minSdkVersion 14
-        targetSdkVersion 19
+        minSdkVersion 20
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
     }
@@ -24,17 +22,14 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
     }
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:22.2.1'
-    //    EncodingUtils
-    compile 'org.apache.httpcomponents:httpcore:4.4.4'
-//    compile 'com.zhy:okhttputils:2.6.2'
-//    provided  files('libs/okhttp-3.1.2.jar')
-//    provided  files('libs/okio-1.6.0_okhttp_reference_jar.jar')
-//    provided  files('libs/KJFrameForAndroid_v2.223.jar')
+    implementation 'com.android.support:appcompat-v7:25.0.0'
 }
