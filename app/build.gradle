@@ -3,6 +3,10 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 25
     buildToolsVersion '26.0.2'
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 
     defaultConfig {
         applicationId "com.example.lixiang.qucikcache"
@@ -11,8 +15,8 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-//        multiDexEnabled true
-//        resConfigs "zh","en"
+        multiDexEnabled true
+        resConfigs "zh","en"
     }
     buildTypes {
         release {
@@ -25,6 +29,6 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.android.support:appcompat-v7:25.0.0'
-//    implementation project(':quickCache')
+    implementation project(':quickCache')
 //    implementation 'com.github.LiXiangABC:QuickCache:v2.1.1'
 }
