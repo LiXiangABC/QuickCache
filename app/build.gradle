@@ -1,22 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion '26.0.2'
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
 
     defaultConfig {
-        applicationId "com.example.lixiang.qucikcache"
-        minSdkVersion 20
-        targetSdkVersion 25
+        multiDexEnabled true
+        applicationId "com.quickcache"
+        minSdkVersion 14
+        targetSdkVersion 19
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        multiDexEnabled true
-        resConfigs "zh","en"
     }
     buildTypes {
         release {
@@ -24,11 +18,13 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
 }
 
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'com.android.support:appcompat-v7:25.0.0'
-    implementation project(':quickCache')
-//    implementation 'com.github.LiXiangABC:QuickCache:v2.1.1'
+//    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:22.2.1'
+//    compile project(':quickCache')
 }
